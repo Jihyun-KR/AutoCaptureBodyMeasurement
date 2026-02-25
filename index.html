@@ -59,29 +59,53 @@ function calculateDistance(p1, p2, w, h){
   );
 }
 
-async function getCameras(){
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const cams = devices.filter(d => d.kind === "videoinput");
-  cameraSelect.innerHTML = "";
-  cams.forEach((cam,i)=>{
-    const option = document.createElement("option");
-    option.value = cam.deviceId;
-    option.text = cam.label || `Camera ${i+1}`;
-    cameraSelect.appendChild(option);
-  });
+async function initCameras(){
+  try{
+    // 🔥 1. 권한 먼저 요청 (중요)
+    await navigator.mediaDevices.getUserMedia({ video: true });
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter(d => d.kind === "videoinput");
+
+    cameraSelect.innerHTML = "";
+
+    cams.forEach((cam,i)=>{
+      const option = document.createElement("option");
+      option.value = cam.deviceId;
+      option.text = cam.label || `Camera ${i+1}`;
+      cameraSelect.appendChild(option);
+    });
+
+    // 기본 카메라 자동 시작
+    if(cams.length > 0){
+      startCamera();
+    }
+
+  }catch(err){
+    alert("카메라 권한을 허용해야 합니다.");
+    console.error(err);
+  }
 }
 
 async function startCamera(){
-  if(stream){
-    stream.getTracks().forEach(track=>track.stop());
+  try{
+    if(stream){
+      stream.getTracks().forEach(track=>track.stop());
+    }
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+    });
+
+    video.srcObject = stream;
+
+  }catch(err){
+    alert("카메라를 시작할 수 없습니다.");
+    console.error(err);
   }
-
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:{ deviceId:{ exact:cameraSelect.value } }
-  });
-
-  video.srcObject = stream;
 }
+
+cameraSelect.addEventListener("change", startCamera);
 
 function resetCapture(){
   captured=false;
@@ -109,7 +133,6 @@ pose.onResults(results=>{
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-  // 🔵 가이드라인 박스 (Python과 동일 비율)
   ctx.strokeStyle="blue";
   ctx.lineWidth=3;
   ctx.strokeRect(
@@ -182,7 +205,9 @@ pose.onResults(results=>{
 });
 
 async function processFrame(){
-  await pose.send({image:video});
+  if(video.readyState >= 2){
+    await pose.send({image:video});
+  }
 }
 
 video.addEventListener("loadeddata",()=>processFrame());
@@ -198,8 +223,9 @@ function downloadCSV(){
   a.click();
 }
 
-getCameras();
-</script>
+// 🔥 페이지 로드시 자동 초기화
+window.onload = initCameras;
 
+</script>
 </body>
 </html>
