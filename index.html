@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Body Measurement</title>
+<title>Body Measurement</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
@@ -11,90 +11,59 @@
 <style>
 body{
   margin:0;
-  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-  font-family:'Segoe UI',sans-serif;
-  color:white;
+  font-family:Arial, sans-serif;
+  background:#f4f6f8;
   text-align:center;
+  color:#333;
 }
 
-.container{
-  padding:20px;
+.header{
+  padding:15px;
+  font-size:20px;
+  font-weight:bold;
+}
+
+.sub{
+  font-size:12px;
+  color:#777;
 }
 
 .card{
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(10px);
-  border-radius:20px;
+  background:white;
+  margin:20px auto;
   padding:20px;
-  box-shadow:0 8px 30px rgba(0,0,0,0.4);
-  max-width:900px;
-  margin:auto;
+  border-radius:12px;
+  max-width:600px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
 canvas{
   width:100%;
-  max-width:500px;
-  border-radius:15px;
-  margin-top:15px;
-}
-
-select,button{
-  padding:10px 15px;
-  margin:8px;
   border-radius:10px;
-  border:none;
-  font-size:14px;
 }
 
-button{
-  background:#00c9ff;
-  color:black;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-button:hover{
-  opacity:0.8;
-}
-
-#guideMessage{
-  font-size:18px;
+#guide{
   margin-top:10px;
   font-weight:bold;
-  color:#ffeb3b;
+  color:#1565c0;
 }
 
-#countdown{
-  font-size:70px;
-  color:#ff5252;
-}
-
-@media(max-width:600px){
-  canvas{
-    max-width:95%;
-  }
+#result{
+  margin-top:15px;
 }
 </style>
 </head>
 <body>
 
-<div class="container">
-<div class="card">
-
-<h2>📏 Smart Auto Body Measurement</h2>
-
-<select id="cameraSelect"></select>
-<button onclick="startCamera()">카메라 시작</button>
-
-<br>
-
-<canvas id="canvas" width="480" height="720"></canvas>
-
-<div id="guideMessage"></div>
-<div id="countdown"></div>
-<div id="result"></div>
-
+<div class="header">
+  📏 Body Measurement
+  <div class="sub">Developed by Jihyun Noh</div>
 </div>
+
+<div class="card">
+  <canvas id="canvas" width="480" height="720"></canvas>
+  <div id="guide">카메라 권한을 허용해주세요</div>
+  <div id="result"></div>
 </div>
 
 <script>
@@ -104,40 +73,18 @@ video.playsInline=true;
 
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
-const cameraSelect=document.getElementById("cameraSelect");
 
-let stream;
 let pose;
-let countdownStart=null;
+let stream;
+let stableStart=null;
 let captured=false;
 
-async function initCameraList(){
+async function init(){
   await navigator.mediaDevices.getUserMedia({video:true});
-  const devices=await navigator.mediaDevices.enumerateDevices();
-  const cams=devices.filter(d=>d.kind==="videoinput");
-
-  cameraSelect.innerHTML="";
-  cams.forEach((cam,i)=>{
-    const option=document.createElement("option");
-    option.value=cam.deviceId;
-    option.text=cam.label||`Camera ${i+1}`;
-    cameraSelect.appendChild(option);
-  });
-
-  startCamera();
-}
-
-async function startCamera(){
-  if(stream) stream.getTracks().forEach(t=>t.stop());
-
-  stream=await navigator.mediaDevices.getUserMedia({
-    video:{deviceId:cameraSelect.value?{exact:cameraSelect.value}:undefined}
-  });
-
+  stream=await navigator.mediaDevices.getUserMedia({video:true});
   video.srcObject=stream;
+  document.getElementById("guide").innerText="전신이 화면 안에 들어오게 서주세요";
 }
-
-cameraSelect.addEventListener("change",startCamera);
 
 pose=new Pose({
   locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
@@ -154,52 +101,53 @@ pose.onResults(results=>{
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-  ctx.strokeStyle="#00e5ff";
-  ctx.lineWidth=3;
-  ctx.strokeRect(
-    canvas.width*0.25,
-    canvas.height*0.05,
-    canvas.width*0.5,
-    canvas.height*0.9
-  );
-
   if(results.poseLandmarks){
+
     drawConnectors(ctx,results.poseLandmarks,POSE_CONNECTIONS);
     drawLandmarks(ctx,results.poseLandmarks);
 
-    const headY=results.poseLandmarks[0].y;
-    const ankleY=(results.poseLandmarks[27].y+
-                  results.poseLandmarks[28].y)/2;
+    const lm=results.poseLandmarks;
 
-    const bodyHeight=ankleY-headY;
+    const headY=lm[0].y;
+    const ankleY=(lm[27].y+lm[28].y)/2;
 
-    let message="";
+    const fullBodyVisible = headY > 0.02 && ankleY < 0.98;
 
-    if(bodyHeight>0.9){
-      message="⬅️ 카메라에서 조금 더 멀리 서주세요";
-      countdownStart=null;
-    }else if(bodyHeight<0.6){
-      message="➡️ 카메라에 조금 더 가까이 와주세요";
-      countdownStart=null;
-    }else{
-      message="👍 자세 유지! 측정 준비 중...";
-      if(!countdownStart) countdownStart=Date.now();
+    if(fullBodyVisible){
 
-      let remaining=3-Math.floor((Date.now()-countdownStart)/1000);
-      document.getElementById("countdown").innerText=
-        remaining>0?remaining:"";
+      if(!stableStart) stableStart=Date.now();
 
-      if(remaining<=0 && !captured){
+      let remain = 2 - Math.floor((Date.now()-stableStart)/1000);
+      document.getElementById("guide").innerText =
+        remain>0 ? "자세 유지 중..." : "측정 완료";
+
+      if(remain<=0 && !captured){
         captured=true;
-        message="✅ 측정 완료!";
+        measure(lm);
       }
-    }
 
-    document.getElementById("guideMessage").innerText=message;
+    }else{
+      stableStart=null;
+      document.getElementById("guide").innerText="전신이 화면에 나오도록 거리 조절해주세요";
+    }
   }
 
   requestAnimationFrame(processFrame);
 });
+
+function measure(lm){
+
+  const height=((lm[27].y+lm[28].y)/2 - lm[0].y).toFixed(2);
+  const shoulder=Math.abs(lm[11].x-lm[12].x).toFixed(2);
+  const hip=Math.abs(lm[23].x-lm[24].x).toFixed(2);
+
+  document.getElementById("result").innerHTML=`
+    <strong>측정 결과</strong><br>
+    신장 비율: ${height}<br>
+    어깨 비율: ${shoulder}<br>
+    골반 비율: ${hip}
+  `;
+}
 
 async function processFrame(){
   if(video.readyState>=2){
@@ -209,7 +157,7 @@ async function processFrame(){
 
 video.addEventListener("loadeddata",processFrame);
 
-window.onload=initCameraList;
+window.onload=init;
 </script>
 
 </body>
