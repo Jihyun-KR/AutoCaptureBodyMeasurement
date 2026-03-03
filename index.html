@@ -5,63 +5,200 @@
 <title>Body Type ML Data Collector</title>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  :root{
+    --pink:#f0006e;--cyan:#0099cc;--purple:#7c3aed;--yellow:#f59e0b;
+    --bg:#f5f3ff;--surface:#ffffff;--surface2:#ede9fe;
+    --border:#ddd6fe;--text:#1e1040;--muted:#7c6faa;
+  }
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:#0a0a0a;color:#e8e8e8;font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 16px;}
-  h2{font-size:20px;font-weight:700;margin-bottom:6px;letter-spacing:-0.3px;}
-  .subtitle{font-size:12px;color:#555;margin-bottom:20px;}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
-  select,button,input{padding:8px 12px;border-radius:7px;font-family:'Inter';font-size:13px;}
-  select,input{background:#161616;border:1px solid #2a2a2a;color:#ddd;}
-  input::placeholder{color:#444;}
-  button{cursor:pointer;font-weight:600;border:none;}
-  .btn-start{background:#00e676;color:#000;}
-  .btn-reset{background:#161616;color:#888;border:1px solid #2a2a2a;}
-  .btn-capture{background:#ff6d00;color:#fff;}
-  .camera-wrap{position:relative;border:2px solid #222;border-radius:10px;overflow:hidden;}
+  body{
+    color:var(--text);
+    font-family:'DM Mono',monospace;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 16px;
+    background:
+      radial-gradient(ellipse 80% 40% at 10% 0%,rgba(240,0,110,0.10) 0%,transparent 55%),
+      radial-gradient(ellipse 60% 35% at 90% 100%,rgba(0,153,204,0.12) 0%,transparent 55%),
+      radial-gradient(ellipse 50% 50% at 50% 50%,rgba(124,58,237,0.07) 0%,transparent 70%),
+      linear-gradient(160deg,#f5f3ff 0%,#fdf4ff 40%,#f0f9ff 100%);
+  }
+  h2{
+    font-family:'Syne',sans-serif;font-size:22px;font-weight:800;
+    background:linear-gradient(90deg,var(--pink),var(--purple),var(--cyan));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    margin-bottom:4px;letter-spacing:-0.5px;
+  }
+  .subtitle{font-size:11px;color:var(--muted);margin-bottom:20px;letter-spacing:0.5px;}
+
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+  select,button,input{padding:8px 12px;border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;}
+  select,input{
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+    box-shadow:0 1px 3px rgba(124,58,237,0.08);
+  }
+  input::placeholder{color:var(--muted);}
+  button{cursor:pointer;font-weight:500;border:none;transition:all 0.15s;}
+
+  .btn-start{
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    color:#fff;
+    box-shadow:0 4px 14px rgba(240,0,110,0.3);
+  }
+  .btn-start:hover{box-shadow:0 6px 20px rgba(240,0,110,0.45);transform:translateY(-1px);}
+
+  .btn-reset{
+    background:var(--surface);color:var(--muted);
+    border:1px solid var(--border);
+    box-shadow:0 1px 3px rgba(124,58,237,0.08);
+  }
+  .btn-reset:hover{border-color:var(--purple);color:var(--purple);}
+
+  /* camera */
+  .camera-wrap{
+    position:relative;border-radius:14px;overflow:hidden;
+    border:1.5px solid transparent;
+    background:linear-gradient(var(--surface),var(--surface)) padding-box,
+               linear-gradient(135deg,var(--pink),var(--purple),var(--cyan)) border-box;
+    box-shadow:0 8px 40px rgba(124,58,237,0.15),0 2px 8px rgba(0,0,0,0.06);
+  }
   video{display:none;}
   canvas{display:block;width:580px;height:652px;}
-  #countdown{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);font-size:110px;font-weight:700;color:#00e676;text-shadow:0 0 30px rgba(0,230,118,0.5);}
-  #statusBar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);padding:8px 14px;font-size:12px;color:#aaa;display:flex;justify-content:space-between;}
-  #stabilityBar{height:4px;background:#1a1a1a;border-radius:2px;margin-top:4px;}
-  #stabilityFill{height:100%;width:0%;background:#00e676;border-radius:2px;transition:width 0.2s;}
+  #countdown{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);
+    font-family:'Syne',sans-serif;font-size:110px;font-weight:800;
+    background:linear-gradient(135deg,var(--pink),var(--yellow));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    filter:drop-shadow(0 0 16px rgba(240,0,110,0.4));
+  }
+  #statusBar{
+    position:absolute;bottom:0;left:0;right:0;
+    background:linear-gradient(0deg,rgba(245,243,255,0.92),transparent);
+    padding:16px 14px 8px;font-size:11px;color:var(--muted);
+    display:flex;justify-content:space-between;
+  }
+  #stabilityBar{height:3px;background:var(--border);border-radius:2px;margin-top:4px;}
+  #stabilityFill{
+    height:100%;width:0%;border-radius:2px;transition:width 0.2s;
+    background:linear-gradient(90deg,var(--pink),var(--cyan));
+    box-shadow:0 0 6px rgba(0,153,204,0.4);
+  }
 
-  /* Label + record count */
+  /* Zoom */
+  .zoom-wrap{
+    display:flex;align-items:center;gap:10px;margin-bottom:14px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:8px 14px;width:100%;max-width:580px;
+    box-shadow:0 1px 4px rgba(124,58,237,0.08);
+  }
+  .zoom-label{font-size:11px;color:var(--muted);white-space:nowrap;}
+  .zoom-btn{
+    background:var(--surface2);border:1px solid var(--border);color:var(--muted);
+    padding:4px 10px;border-radius:6px;font-size:16px;cursor:pointer;line-height:1;
+    transition:all 0.15s;
+  }
+  .zoom-btn:hover{border-color:var(--purple);color:var(--purple);box-shadow:0 0 8px rgba(124,58,237,0.2);}
+  input[type=range]#zoomSlider{
+    flex:1;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
+    background:linear-gradient(to right,var(--purple) 0%,var(--purple) 50%,var(--border) 50%,var(--border) 100%);
+    outline:none;border:none;cursor:pointer;padding:0;
+  }
+  input[type=range]#zoomSlider::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--purple);cursor:pointer;
+    box-shadow:0 0 0 3px rgba(124,58,237,0.2),0 2px 6px rgba(124,58,237,0.3);
+  }
+  #zoomValue{font-size:12px;color:var(--purple);font-weight:500;min-width:36px;text-align:right;}
+
+  /* Label row */
   .label-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
-  .label-row label{font-size:12px;color:#666;}
-  #recordCount{font-size:12px;color:#555;margin-left:8px;}
+  .label-row label{font-size:11px;color:var(--muted);}
+  #recordCount{
+    font-size:11px;margin-left:8px;
+    background:linear-gradient(90deg,var(--pink),var(--purple));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    font-weight:600;
+  }
 
   /* Metrics */
   #result{margin:16px 0;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
-  .metric-card{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:10px 16px;min-width:110px;text-align:center;}
-  .metric-label{font-size:11px;color:#555;margin-bottom:4px;}
-  .metric-value{font-size:20px;font-weight:700;color:#00e676;}
-  .metric-value span{font-size:11px;color:#444;margin-left:1px;}
+  .metric-card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:10px 16px;min-width:110px;text-align:center;
+    box-shadow:0 2px 8px rgba(124,58,237,0.08);
+    transition:all 0.2s;
+  }
+  .metric-card:hover{
+    border-color:var(--purple);
+    box-shadow:0 6px 20px rgba(124,58,237,0.15);
+    transform:translateY(-2px);
+  }
+  .metric-label{font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:0.5px;}
+  .metric-value{
+    font-family:'Syne',sans-serif;font-size:22px;font-weight:700;
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .metric-value span{font-size:10px;color:var(--muted);margin-left:2px;-webkit-text-fill-color:var(--muted);}
 
   /* Tabs */
-  .tabs{display:flex;gap:0;margin-top:20px;width:100%;max-width:900px;border-bottom:1px solid #1e1e1e;}
-  .tab{padding:8px 18px;font-size:12px;font-weight:600;color:#555;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
-  .tab.active{color:#00e676;border-bottom-color:#00e676;}
+  .tabs{display:flex;margin-top:20px;width:100%;max-width:900px;border-bottom:1px solid var(--border);}
+  .tab{
+    padding:8px 16px;font-size:11px;font-weight:500;color:var(--muted);
+    cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;
+    letter-spacing:0.3px;
+  }
+  .tab:hover{color:var(--purple);}
+  .tab.active{color:var(--purple);border-bottom-color:var(--purple);}
   .tab-content{display:none;width:100%;max-width:900px;margin-top:12px;}
   .tab-content.active{display:block;}
-  .table-wrap{max-height:240px;overflow-y:auto;border:1px solid #1e1e1e;border-radius:7px;}
+  .table-wrap{
+    max-height:240px;overflow-y:auto;
+    border:1px solid var(--border);border-radius:10px;
+  }
+  .table-wrap::-webkit-scrollbar{width:4px;}
+  .table-wrap::-webkit-scrollbar-track{background:var(--surface2);}
+  .table-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
   table{width:100%;border-collapse:collapse;font-size:11px;}
-  th{background:#111;color:#555;padding:6px 8px;text-align:center;position:sticky;top:0;border-bottom:1px solid #1e1e1e;}
-  td{padding:4px 8px;text-align:center;border-top:1px solid #141414;color:#bbb;}
-  tr:hover td{background:#111;}
-  .lm-name{text-align:left;color:#00e676;font-size:10px;}
-  .feat-name{text-align:left;color:#ff9800;font-size:10px;}
+  th{
+    background:var(--surface2);color:var(--muted);
+    padding:7px 8px;text-align:center;position:sticky;top:0;
+    border-bottom:1px solid var(--border);letter-spacing:0.3px;
+  }
+  td{padding:4px 8px;text-align:center;border-top:1px solid var(--border);color:var(--text);}
+  tr:hover td{background:var(--surface2);}
+  .lm-name{text-align:left;color:var(--cyan);font-size:10px;}
+  .feat-name{text-align:left;color:var(--yellow);font-size:10px;}
 
-  /* Download buttons */
-  .dl-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
-  .btn-dl{padding:8px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;}
-  .btn-landmarks{background:#161616;color:#00b0ff;border:1px solid #00b0ff;}
-  .btn-features{background:#161616;color:#ff9800;border:1px solid #ff9800;}
-  .btn-all{background:#161616;color:#e040fb;border:1px solid #e040fb;}
+  /* Download */
+  .dl-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;margin-bottom:20px;}
+  .btn-dl{
+    padding:9px 18px;border-radius:8px;font-size:12px;font-weight:500;
+    cursor:pointer;border:none;transition:all 0.15s;font-family:'DM Mono',monospace;
+  }
+  .btn-landmarks{
+    background:rgba(0,153,204,0.08);
+    color:var(--cyan);border:1px solid rgba(0,153,204,0.4);
+  }
+  .btn-landmarks:hover{background:rgba(0,153,204,0.15);box-shadow:0 4px 12px rgba(0,153,204,0.2);transform:translateY(-1px);}
+  .btn-features{
+    background:rgba(245,158,11,0.08);
+    color:var(--yellow);border:1px solid rgba(245,158,11,0.4);
+  }
+  .btn-features:hover{background:rgba(245,158,11,0.15);box-shadow:0 4px 12px rgba(245,158,11,0.2);transform:translateY(-1px);}
+  .btn-all{
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    color:#fff;border:none;
+    box-shadow:0 4px 14px rgba(240,0,110,0.25);
+  }
+  .btn-all:hover{box-shadow:0 8px 24px rgba(240,0,110,0.4);transform:translateY(-1px);}
 
-  .section-title{font-size:11px;color:#444;margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase;}
-  .badge{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;padding:2px 7px;font-size:10px;color:#888;margin-left:6px;}
+  .badge{
+    display:inline-block;
+    background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);
+    border-radius:4px;padding:2px 6px;font-size:9px;color:var(--purple);margin-left:6px;
+  }
+  .section-title{font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;}
 </style>
 </head>
 <body>
@@ -73,6 +210,16 @@
   <select id="cameraSelect"></select>
   <button class="btn-start" onclick="startCamera()">카메라 시작</button>
   <button class="btn-reset" onclick="resetCapture()">재측정</button>
+</div>
+
+<!-- 🔍 줌 컨트롤 -->
+<div class="zoom-wrap">
+  <span class="zoom-label">🔍 줌</span>
+  <button class="zoom-btn" onclick="adjustZoom(-0.1)">−</button>
+  <input type="range" id="zoomSlider" min="0.3" max="1.5" step="0.05" value="1.0" oninput="onZoomChange(this.value)">
+  <button class="zoom-btn" onclick="adjustZoom(0.1)">+</button>
+  <span id="zoomValue">1.0×</span>
+  <button class="zoom-btn" style="font-size:11px;padding:4px 8px;" onclick="resetZoom()">리셋</button>
 </div>
 
 <div class="label-row">
@@ -178,7 +325,37 @@ const video=document.getElementById("video");
 const canvas=document.getElementById("canvas");
 const ctx=canvas.getContext("2d");
 let stream,prevLandmarks=null,stableStart=null,countdownStart=null,captured=false;
-let allSamples=[]; // 누적 샘플 (각 캡처)
+let allSamples=[];
+
+// ── 줌 상태 ─────────────────────────────────────────
+let zoomLevel = 1.0; // 1.0 = 기본, 0.5 = 줌아웃(더 넓게), 1.5 = 줌인(더 좁게)
+
+function onZoomChange(val){
+  zoomLevel = parseFloat(val);
+  document.getElementById("zoomValue").innerText = zoomLevel.toFixed(1) + "×";
+  updateSliderFill(val);
+}
+
+function adjustZoom(delta){
+  const slider = document.getElementById("zoomSlider");
+  const newVal = Math.min(1.5, Math.max(0.3, zoomLevel + delta));
+  slider.value = newVal;
+  onZoomChange(newVal);
+}
+
+function resetZoom(){
+  const slider = document.getElementById("zoomSlider");
+  slider.value = 1.0;
+  onZoomChange(1.0);
+}
+
+function updateSliderFill(val){
+  const slider = document.getElementById("zoomSlider");
+  const min = parseFloat(slider.min);
+  const max = parseFloat(slider.max);
+  const pct = ((val - min) / (max - min)) * 100;
+  slider.style.background = `linear-gradient(to right, #00e676 0%, #00e676 ${pct}%, #2a2a2a ${pct}%, #2a2a2a 100%)`;
+}
 
 // ── 유틸 함수 ───────────────────────────────────────
 function dist2D(a,b,w,h){
@@ -192,7 +369,6 @@ function dist3Dworld(a,b){
 }
 function midpoint(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2,z:((a.z||0)+(b.z||0))/2};}
 
-// 세 점으로 각도 계산 (B가 꼭짓점)
 function angleDeg(A,B,C){
   const BA={x:A.x-B.x,y:A.y-B.y};
   const BC={x:C.x-B.x,y:C.y-B.y};
@@ -206,13 +382,10 @@ function angleDeg(A,B,C){
 // ── 피처 추출 ───────────────────────────────────────
 function extractFeatures(lm, wlm, W, H){
   const L=LM;
-
-  // 기준 키 (nose ~ 발목 중간)
   const ankleY=(lm[L.LEFT_ANKLE].y+lm[L.RIGHT_ANKLE].y)/2;
   const heightNorm=Math.abs(lm[L.NOSE].y - ankleY);
   const heightPx=heightNorm*H;
 
-  // ── 거리 피처 (16개) ──────────────────────────────
   const defs=[
     {key:"shoulder_width",       a:lm[L.LEFT_SHOULDER], b:lm[L.RIGHT_SHOULDER], desc:"어깨폭"},
     {key:"hip_width",            a:lm[L.LEFT_HIP],      b:lm[L.RIGHT_HIP],      desc:"골반폭"},
@@ -238,7 +411,6 @@ function extractFeatures(lm, wlm, W, H){
     distances[d.key]={px:px.toFixed(4), norm:(px/heightPx).toFixed(6), desc:d.desc};
   });
 
-  // ── 비율 피처 ─────────────────────────────────────
   const sw=dist2D(lm[L.LEFT_SHOULDER],lm[L.RIGHT_SHOULDER],W,H);
   const hw=dist2D(lm[L.LEFT_HIP],lm[L.RIGHT_HIP],W,H);
   const cw=dist2D(
@@ -252,7 +424,6 @@ function extractFeatures(lm, wlm, W, H){
                      dist2D(midpoint(lm[L.LEFT_HIP],lm[L.RIGHT_HIP]),midpoint(lm[L.LEFT_ANKLE],lm[L.RIGHT_ANKLE]),W,H)).toFixed(6),
   };
 
-  // ── 관절 각도 (12개) ──────────────────────────────
   const angles={
     left_shoulder_angle:  angleDeg(lm[L.LEFT_ELBOW],  lm[L.LEFT_SHOULDER],  lm[L.LEFT_HIP]).toFixed(2),
     right_shoulder_angle: angleDeg(lm[L.RIGHT_ELBOW], lm[L.RIGHT_SHOULDER], lm[L.RIGHT_HIP]).toFixed(2),
@@ -285,7 +456,6 @@ function extractFeatures(lm, wlm, W, H){
 
 // ── 테이블 렌더링 ───────────────────────────────────
 function renderTables(lm, wlm, W, H, feats){
-  // 랜드마크
   const tbody=document.getElementById("bodyLandmarks");
   tbody.innerHTML="";
   lm.forEach((p,i)=>{
@@ -297,7 +467,6 @@ function renderTables(lm, wlm, W, H, feats){
     </tr>`;
   });
 
-  // 월드 좌표
   const wbody=document.getElementById("bodyWorld");
   wbody.innerHTML="";
   if(wlm){
@@ -312,7 +481,6 @@ function renderTables(lm, wlm, W, H, feats){
     wbody.innerHTML='<tr><td colspan="6" style="color:#444;padding:14px;">월드 좌표 없음</td></tr>';
   }
 
-  // 각도
   const abody=document.getElementById("bodyAngles");
   const angleDescs={
     left_shoulder_angle:"왼 어깨 (팔꿈치-어깨-골반)",
@@ -332,7 +500,6 @@ function renderTables(lm, wlm, W, H, feats){
     </tr>`;
   });
 
-  // 거리
   const dbody=document.getElementById("bodyDistances");
   dbody.innerHTML="";
   Object.entries(feats.distances).forEach(([k,v])=>{
@@ -343,7 +510,6 @@ function renderTables(lm, wlm, W, H, feats){
       <td style="color:#555;">${v.desc}</td>
     </tr>`;
   });
-  // 비율 추가
   Object.entries(feats.ratios).forEach(([k,v])=>{
     dbody.innerHTML+=`<tr>
       <td class="feat-name" style="color:#e040fb;">${k}</td>
@@ -361,20 +527,40 @@ pose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false
 pose.onResults(results=>{
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  ctx.drawImage(video,0,0,W,H);
 
-  // 가이드 박스
-  ctx.strokeStyle="rgba(41,121,255,0.6)";ctx.lineWidth=2;
+  // ── 줌 적용: 소스 크롭 방식 ──
+  // zoomLevel > 1 → 줌인 (중앙 크롭 후 확대)
+  // zoomLevel < 1 → 줌아웃 (더 넓은 영역을 캔버스에 맞게 축소)
+  const vw = video.videoWidth  || W;
+  const vh = video.videoHeight || H;
+
+  // 현재 줌 레벨에서 소스에서 잘라낼 영역 크기
+  const cropW = vw / zoomLevel;
+  const cropH = vh / zoomLevel;
+  // 화면 중앙 기준 크롭
+  const cropX = Math.max(0, (vw - cropW) / 2);
+  const cropY = Math.max(0, (vh - cropH) / 2);
+
+  ctx.drawImage(video,
+    cropX, cropY, Math.min(cropW, vw), Math.min(cropH, vh),  // 소스 영역
+    0, 0, W, H                                                 // 캔버스 전체
+  );
+
+  // 가이드 박스 — 그라디언트 테두리
+  const grd=ctx.createLinearGradient(W*0.25,H*0.05,W*0.75,H*0.95);
+  grd.addColorStop(0,'rgba(255,45,120,0.7)');
+  grd.addColorStop(0.5,'rgba(191,95,255,0.7)');
+  grd.addColorStop(1,'rgba(0,245,255,0.7)');
+  ctx.strokeStyle=grd;ctx.lineWidth=2;
   ctx.strokeRect(W*0.25,H*0.05,W*0.5,H*0.9);
 
   if(results.poseLandmarks){
     const lm=results.poseLandmarks;
     const wlm=results.poseWorldLandmarks||null;
 
-    drawConnectors(ctx,lm,POSE_CONNECTIONS,{color:'rgba(0,230,118,0.4)',lineWidth:1.5});
-    drawLandmarks(ctx,lm,{color:'#00e676',radius:2.5});
+    drawConnectors(ctx,lm,POSE_CONNECTIONS,{color:'rgba(191,95,255,0.5)',lineWidth:2});
+    drawLandmarks(ctx,lm,{color:'#ff2d78',fillColor:'rgba(255,45,120,0.3)',radius:3});
 
-    // 안정성 계산
     let diff=999;
     if(prevLandmarks){
       diff=lm.reduce((s,p,i)=>s+Math.abs(p.x-prevLandmarks[i].x)+Math.abs(p.y-prevLandmarks[i].y),0);
@@ -398,17 +584,14 @@ pose.onResults(results=>{
           captured=true;
           const feats=extractFeatures(lm,wlm,W,H);
 
-          // 메트릭 표시
           document.getElementById("valH").innerHTML=`${feats.heightPx.toFixed(1)}<span>px</span>`;
           document.getElementById("valS").innerHTML=`${feats.sw.toFixed(1)}<span>px</span>`;
           document.getElementById("valP").innerHTML=`${feats.hw.toFixed(1)}<span>px</span>`;
           document.getElementById("valC").innerHTML=`${feats.cw.toFixed(1)}<span>px</span>`;
           document.getElementById("valRatio").innerHTML=feats.ratios.shoulder_hip_ratio;
 
-          // 테이블
           renderTables(lm,wlm,W,H,feats);
 
-          // 샘플 저장
           const label=document.getElementById("labelInput").value.trim()||"unlabeled";
           allSamples.push({
             timestamp:new Date().toISOString(),
@@ -449,8 +632,20 @@ async function getCameras(){
 }
 async function startCamera(){
   if(stream)stream.getTracks().forEach(t=>t.stop());
-  stream=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:document.getElementById("cameraSelect").value}}});
+  // 고해상도 요청 → 더 넓은 영역을 캡처한 뒤 다운스케일
+  stream=await navigator.mediaDevices.getUserMedia({
+    video:{
+      deviceId:{exact:document.getElementById("cameraSelect").value},
+      width:{ideal:1920},
+      height:{ideal:1080}
+    }
+  });
   video.srcObject=stream;
+  // 실제 해상도 확인 후 표시
+  video.addEventListener("loadedmetadata",()=>{
+    const t=stream.getVideoTracks()[0].getSettings();
+    document.getElementById("statusText").innerText=`카메라 해상도: ${t.width}×${t.height} — 자세를 고정해 주세요`;
+  },{once:true});
 }
 function resetCapture(){
   captured=false;stableStart=null;countdownStart=null;prevLandmarks=null;
@@ -498,7 +693,6 @@ function downloadLandmarksCSV(){
 
 function downloadFeaturesCSV(){
   if(!allSamples.length){alert("먼저 캡처해 주세요.");return;}
-  // 헤더 동적 생성
   const s0=allSamples[0];
   const distKeys=Object.keys(s0.features.distances);
   const distPxCols=distKeys.map(k=>k+"_px");
@@ -525,7 +719,6 @@ function downloadFeaturesCSV(){
 
 function downloadAllCSV(){
   if(!allSamples.length){alert("먼저 캡처해 주세요.");return;}
-  // 모든 랜드마크 좌표를 컬럼으로 펼치는 wide format (ML에 바로 사용 가능)
   const W=canvas.width,H=canvas.height;
   const lmCols=[];
   LANDMARK_NAMES.forEach(n=>{
