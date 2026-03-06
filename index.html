@@ -682,7 +682,7 @@ pose.onResults(results=>{
     }
     document.getElementById("diffText").innerText=`diff: ${diff.toFixed(4)}`;
 
-    const stableThreshold=0.03;
+    const stableThreshold=0.015;
     const stabilityPct=Math.max(0,Math.min(100,(1-diff/stableThreshold)*100));
     document.getElementById("stabilityFill").style.width=stabilityPct+"%";
 
